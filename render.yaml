@@ -1,0 +1,27 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Connect this repo in the Render dashboard ("New +" -> "Blueprint") and it
+# will detect this file and provision the service below automatically.
+#
+# DATABASE_URL and CORS_ORIGINS are marked sync: false — Render will prompt
+# for them in the dashboard rather than storing them in this file, since
+# they depend on external services (Neon, the deployed frontend URL) that
+# don't exist until you've created them.
+services:
+  - type: web
+    name: tankha-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run seed && node dist/main.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: CORS_ORIGINS
+        sync: false

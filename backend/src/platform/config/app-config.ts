@@ -26,6 +26,19 @@ export class AppConfig {
     return Number(this.config.get<string>('PORT') ?? '3000');
   }
 
+  /**
+   * Allowed browser origins for CORS, comma-separated (e.g. the deployed SPA's
+   * URL). Defaults to the Vite dev server so local development needs no env
+   * var; a production deploy sets this to the actual frontend origin(s).
+   */
+  get corsOrigins(): string[] {
+    const raw = this.config.get<string>('CORS_ORIGINS');
+    if (!raw) {
+      return ['http://localhost:5173'];
+    }
+    return raw.split(',').map((origin) => origin.trim());
+  }
+
   private require(key: string): string {
     const value = this.config.get<string>(key);
     if (!value) {

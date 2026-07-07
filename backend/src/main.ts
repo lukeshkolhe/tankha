@@ -8,8 +8,14 @@ import { DomainExceptionFilter } from './platform/http/domain-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(AppConfig);
 
   app.setGlobalPrefix('api/v1');
+  app.enableCors({
+    origin: config.corsOrigins,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
@@ -23,7 +29,6 @@ async function bootstrap(): Promise<void> {
     .build();
   SwaggerModule.setup('api/v1/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
 
-  const config = app.get(AppConfig);
   await app.listen(config.port);
 }
 

@@ -9,6 +9,11 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Only needed against a connection-pooled Postgres (e.g. Neon's pooled
+  // string): `prisma migrate deploy` requires a direct, non-pooled
+  // connection. Falls back to DATABASE_URL when unset, so local dev and any
+  // non-pooled provider need nothing extra.
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ─────────────────────────── access ───────────────────────────
