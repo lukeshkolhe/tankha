@@ -220,6 +220,12 @@ call was mine, not the model's default.
 - **Docs and naming** — I asked for domain-specific naming (`SalaryRevision`,
 `TenantContext`) over generic `utils`/`helpers`, and reviewed the module-architecture
 docs for consistency before treating them as the design of record.
+- **Specialized skills for specific tasks** — rather than one generic pass, I used
+purpose-built skills for each phase: a **product-manager** skill for the discovery
+questions and PRD, a **software-architect** skill for the high-level and per-module
+architecture docs, a **SOLID/software-engineer** skill for the Clean Architecture
+backend implementation, and a **designer** skill for the frontend's UI/dashboard
+decisions — each reviewed against the artifact it was actually meant to produce.
 
 ---
 
