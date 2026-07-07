@@ -1,6 +1,6 @@
 import { Anchor, Badge, Pagination, Stack, Table, Text } from '@mantine/core';
 import { Link, useSearchParams } from 'react-router-dom';
-import { formatMoney } from '../../../lib/money';
+import { MoneyText } from '../../../components/MoneyText';
 import { useReferenceData } from '../api/useReferenceData';
 import { withUpdatedParam } from '../lib/employee-list-params';
 import type { components } from '../../../api/schema';
@@ -51,7 +51,7 @@ export function EmployeeTable({ rows, total, page, pageSize }: EmployeeTableProp
             <Table.Th>Country</Table.Th>
             <Table.Th>Currency</Table.Th>
             <Table.Th>Status</Table.Th>
-            <Table.Th>Salary</Table.Th>
+            <Table.Th ta="right">Salary</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -63,7 +63,7 @@ export function EmployeeTable({ rows, total, page, pageSize }: EmployeeTableProp
                   <Anchor component={Link} to={`/employees/${row.id}`} fw={500} size="sm">
                     {row.firstName} {row.lastName}
                   </Anchor>
-                  <Text size="xs" c="dimmed">
+                  <Text size="xs" c="dimmed" ff="monospace">
                     {row.employeeCode}
                   </Text>
                 </Table.Td>
@@ -76,10 +76,13 @@ export function EmployeeTable({ rows, total, page, pageSize }: EmployeeTableProp
                     {isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </Table.Td>
-                <Table.Td>
-                  {row.salaryTotalMinor === null
-                    ? '—'
-                    : formatMoney(row.salaryTotalMinor, row.currency, minorUnitDigitsFor(row.currency))}
+                <Table.Td ta="right">
+                  <MoneyText
+                    amountMinor={row.salaryTotalMinor}
+                    currencyCode={row.currency}
+                    minorUnitDigits={minorUnitDigitsFor(row.currency)}
+                    size="sm"
+                  />
                 </Table.Td>
               </Table.Tr>
             );

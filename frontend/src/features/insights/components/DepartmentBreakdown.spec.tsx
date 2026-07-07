@@ -89,8 +89,11 @@ describe('DepartmentBreakdown', () => {
     renderWithProviders(<DepartmentBreakdown searchParams={new URLSearchParams()} />);
     await screen.findByText('Engineering');
 
-    expect(screen.getByText('avg ₹13,000.00')).toBeInTheDocument();
-    expect(screen.getByText('avg $100,000.00')).toBeInTheDocument();
+    // "avg" and the formatted figure are separate elements (the figure gets
+    // its own tabular-mono treatment via MoneyText) — assert both render.
+    expect(screen.getAllByText('avg')).toHaveLength(2);
+    expect(screen.getByText('₹13,000.00')).toBeInTheDocument();
+    expect(screen.getByText('$100,000.00')).toBeInTheDocument();
   });
 
   it('renders a single-currency legend entry once even with several mixed departments', async () => {

@@ -1,6 +1,7 @@
-import { Stack, Text } from '@mantine/core';
-import { formatMoney } from '../../../lib/money';
+import { Group, Stack, Text } from '@mantine/core';
+import { MoneyText } from '../../../components/MoneyText';
 import { formatDate } from '../../../lib/format-date';
+import { themeOther } from '../../../theme';
 import { useRevisions } from '../api/useRevisions';
 
 export interface RevisionTimelineProps {
@@ -45,19 +46,30 @@ export function RevisionTimeline({ employeeId }: RevisionTimelineProps) {
             <Text size="sm" c="dimmed">
               {revision.changedBy.name}
             </Text>
-            <Text size="sm">
+            <Group gap={6} mt={2}>
               {oldTotalMinor !== null && (
                 <>
+                  <MoneyText
+                    amountMinor={oldTotalMinor}
+                    currencyCode={revision.currency}
+                    minorUnitDigits={DEFAULT_MINOR_UNIT_DIGITS}
+                    size="sm"
+                    c="dimmed"
+                  />
                   <Text component="span" c="dimmed">
-                    {formatMoney(oldTotalMinor, revision.currency, DEFAULT_MINOR_UNIT_DIGITS)}
-                  </Text>{' '}
-                  <Text component="span">→</Text>{' '}
+                    →
+                  </Text>
                 </>
               )}
-              <Text component="span" fw={600}>
-                {formatMoney(revision.newTotalMinor, revision.currency, DEFAULT_MINOR_UNIT_DIGITS)}
-              </Text>
-            </Text>
+              <MoneyText
+                amountMinor={revision.newTotalMinor}
+                currencyCode={revision.currency}
+                minorUnitDigits={DEFAULT_MINOR_UNIT_DIGITS}
+                size="md"
+                fw={700}
+                c={themeOther.brass}
+              />
+            </Group>
           </div>
         );
       })}

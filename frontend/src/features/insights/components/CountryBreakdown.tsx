@@ -1,5 +1,5 @@
 import { Table, Text } from '@mantine/core';
-import { formatMoney } from '../../../lib/money';
+import { MoneyText } from '../../../components/MoneyText';
 import { useCountryBreakdown } from '../api/useCountryBreakdown';
 import { useCurrencies } from '../api/useReferenceLists';
 import { toMinorUnitDigitsMap } from '../lib/currency-minor-units';
@@ -41,7 +41,7 @@ export function CountryBreakdown({ searchParams }: CountryBreakdownProps) {
             <Table.Th>Country</Table.Th>
             <Table.Th>Currency</Table.Th>
             <Table.Th>Headcount</Table.Th>
-            <Table.Th>Average</Table.Th>
+            <Table.Th ta="right">Average</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
@@ -50,8 +50,13 @@ export function CountryBreakdown({ searchParams }: CountryBreakdownProps) {
               <Table.Td>{row.dimension}</Table.Td>
               <Table.Td>{row.currency}</Table.Td>
               <Table.Td>{row.headcount.toLocaleString('en-US')}</Table.Td>
-              <Table.Td>
-                {formatMoney(row.averageMinor, row.currency, minorUnitDigitsByCode[row.currency] ?? 2)}
+              <Table.Td ta="right">
+                <MoneyText
+                  amountMinor={row.averageMinor}
+                  currencyCode={row.currency}
+                  minorUnitDigits={minorUnitDigitsByCode[row.currency] ?? 2}
+                  size="sm"
+                />
               </Table.Td>
             </Table.Tr>
           ))}

@@ -1,0 +1,31 @@
+/**
+ * The handful of things Mantine's component theming can't express, matching
+ * the design pitch's base styles exactly.
+ */
+body {
+  background: #f5f6f2;
+  color: #14171d;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+::selection {
+  background: rgba(20, 99, 86, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,4 +1,4 @@
-import { NavLink as RouterNavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink as RouterNavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppShell as MantineAppShell,
   Avatar,
@@ -10,6 +10,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useAuth } from '../auth/AuthContext';
+import { themeOther } from '../theme';
 
 interface NavItem {
   to: string;
@@ -30,6 +31,16 @@ function initialsOf(name: string): string {
     .toUpperCase();
 }
 
+/** The double hairline under the wordmark — an accountant's convention for a final total, borrowed as the brand mark. */
+function WordmarkRule() {
+  return (
+    <Stack gap={2} w={64} mb="xl" aria-hidden>
+      <div style={{ height: 1, background: themeOther.ink }} />
+      <div style={{ height: 1, background: themeOther.ink }} />
+    </Stack>
+  );
+}
+
 /**
  * The persistent shell every authenticated screen renders inside: the
  * wordmark, the two destinations, and the signed-in org/user — per the
@@ -40,6 +51,7 @@ function initialsOf(name: string): string {
 export function AppShell() {
   const { user, organisation, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   function handleLogout() {
     logout();
@@ -48,26 +60,29 @@ export function AppShell() {
 
   return (
     <MantineAppShell navbar={{ width: 208, breakpoint: 'sm' }} padding="lg">
-      <MantineAppShell.Navbar p="md">
+      <MantineAppShell.Navbar p="md" style={{ backgroundColor: themeOther.surface2 }}>
         <Stack justify="space-between" h="100%">
           <div>
             <Text
               component="div"
               fw={600}
-              size="lg"
+              size="19px"
               mb={2}
               style={{ fontFamily: 'var(--mantine-heading-font-family)' }}
             >
               Tankha
             </Text>
-            <Stack gap={2} mt="xl">
+            <WordmarkRule />
+            <Stack gap={2}>
               {NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
                   component={RouterNavLink}
                   to={item.to}
                   label={item.label}
+                  active={location.pathname.startsWith(item.to)}
                   variant="light"
+                  color="verdigris"
                 />
               ))}
             </Stack>
@@ -80,17 +95,17 @@ export function AppShell() {
                   aria-label="Account menu"
                   py="sm"
                   w="100%"
-                  style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
+                  style={{ borderTop: `1px solid ${themeOther.line}` }}
                 >
                   <Group gap="xs">
-                    <Avatar color="verdigris" radius="xl" size="sm">
+                    <Avatar color="verdigris" radius="xl" size={28}>
                       {initialsOf(user.name)}
                     </Avatar>
                     <div>
-                      <Text size="xs" fw={600}>
+                      <Text size="12.5px" fw={600}>
                         {organisation.name}
                       </Text>
-                      <Text size="xs" c="dimmed">
+                      <Text size="11.5px" c="dimmed">
                         {user.name}
                       </Text>
                     </div>

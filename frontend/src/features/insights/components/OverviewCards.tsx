@@ -1,5 +1,5 @@
 import { Card, Group, SimpleGrid, Text } from '@mantine/core';
-import { formatMoney } from '../../../lib/money';
+import { MoneyText } from '../../../components/MoneyText';
 import { themeOther } from '../../../theme';
 import { useOverview } from '../api/useOverview';
 import { useCurrencies } from '../api/useReferenceLists';
@@ -34,7 +34,12 @@ export function OverviewCards({ searchParams }: OverviewCardsProps) {
         <Text size="sm" c="dimmed">
           Headcount
         </Text>
-        <Text size="xl" fw={700}>
+        <Text
+          size="26px"
+          fw={700}
+          ff="monospace"
+          style={{ fontVariantNumeric: 'tabular-nums' }}
+        >
           {overview.data.headcount.toLocaleString('en-US')}
         </Text>
       </Card>
@@ -69,15 +74,24 @@ export function OverviewCards({ searchParams }: OverviewCardsProps) {
             <Text size="xs" c="dimmed">
               Total
             </Text>
-            <Text size="md" fw={600} mb={4}>
-              {formatMoney(group.totalMinor, group.currency, minorUnitDigits)}
-            </Text>
+            <MoneyText
+              amountMinor={group.totalMinor}
+              currencyCode={group.currency}
+              minorUnitDigits={minorUnitDigits}
+              size="20px"
+              fw={700}
+              mb={4}
+            />
             <Text size="xs" c="dimmed">
               Average
             </Text>
-            <Text size="md" fw={600}>
-              {formatMoney(group.averageMinor, group.currency, minorUnitDigits)}
-            </Text>
+            <MoneyText
+              amountMinor={group.averageMinor}
+              currencyCode={group.currency}
+              minorUnitDigits={minorUnitDigits}
+              size="md"
+              fw={600}
+            />
           </Card>
         );
       })}

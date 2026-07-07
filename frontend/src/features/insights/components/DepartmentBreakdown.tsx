@@ -1,5 +1,5 @@
 import { Group, Stack, Text } from '@mantine/core';
-import { formatMoney } from '../../../lib/money';
+import { MoneyText } from '../../../components/MoneyText';
 import { themeOther } from '../../../theme';
 import { useDepartmentBreakdown } from '../api/useDepartmentBreakdown';
 import { useCurrencies } from '../api/useReferenceLists';
@@ -92,9 +92,18 @@ export function DepartmentBreakdown({ searchParams }: DepartmentBreakdownProps) 
                     <Text size="xs" c="dimmed">
                       {group.currency} · {group.headcount.toLocaleString('en-US')} employees
                     </Text>
-                    <Text size="xs" fw={600}>
-                      avg {formatMoney(group.averageMinor, group.currency, minorUnitDigits)}
-                    </Text>
+                    <Group gap={4}>
+                      <Text size="xs" fw={600} c="dimmed">
+                        avg
+                      </Text>
+                      <MoneyText
+                        amountMinor={group.averageMinor}
+                        currencyCode={group.currency}
+                        minorUnitDigits={minorUnitDigits}
+                        size="xs"
+                        fw={600}
+                      />
+                    </Group>
                   </Group>
                   <div
                     role="img"

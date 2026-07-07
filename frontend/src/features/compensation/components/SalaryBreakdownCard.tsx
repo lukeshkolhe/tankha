@@ -3,7 +3,8 @@ import { Alert, Button, Card, Group, Loader, Stack, Text } from '@mantine/core';
 import { useSalary } from '../api/useSalary';
 import { useCurrencyDigits } from '../api/useCurrencyDigits';
 import { SALARY_COMPONENT_LABELS, SALARY_COMPONENT_TYPES } from '../lib/salary-math';
-import { formatMoney } from '../../../lib/money';
+import { MoneyText } from '../../../components/MoneyText';
+import { themeOther } from '../../../theme';
 import { EditSalaryModal } from './EditSalaryModal';
 
 interface SalaryBreakdownCardProps {
@@ -47,13 +48,26 @@ export function SalaryBreakdownCard({ employeeId, currencyCode }: SalaryBreakdow
                 <Text c="dimmed" size="sm">
                   {SALARY_COMPONENT_LABELS[type]}
                 </Text>
-                <Text size="sm">{formatMoney(amountMinor, currencyCode, minorUnitDigits)}</Text>
+                <MoneyText
+                  amountMinor={amountMinor}
+                  currencyCode={currencyCode}
+                  minorUnitDigits={minorUnitDigits}
+                  size="sm"
+                />
               </Group>
             );
           })}
-          <Group justify="space-between" pt="xs" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
-            <Text fw={600}>Total (annual)</Text>
-            <Text fw={600}>{formatMoney(salaryQuery.data.totalMinor, currencyCode, minorUnitDigits)}</Text>
+          <Group justify="space-between" pt="xs" style={{ borderTop: `2px solid ${themeOther.ink}` }}>
+            <Text fw={700} size="13px">
+              Total (annual)
+            </Text>
+            <MoneyText
+              amountMinor={salaryQuery.data.totalMinor}
+              currencyCode={currencyCode}
+              minorUnitDigits={minorUnitDigits}
+              size="20px"
+              fw={700}
+            />
           </Group>
         </Stack>
       )}
