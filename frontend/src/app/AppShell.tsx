@@ -1,5 +1,14 @@
 import { NavLink as RouterNavLink, Outlet } from 'react-router-dom';
-import { AppShell as MantineAppShell, Avatar, Group, NavLink, Stack, Text } from '@mantine/core';
+import {
+  AppShell as MantineAppShell,
+  Avatar,
+  Group,
+  Menu,
+  NavLink,
+  Stack,
+  Text,
+  UnstyledButton,
+} from '@mantine/core';
 import { useAuth } from '../auth/AuthContext';
 
 interface NavItem {
@@ -59,27 +68,33 @@ export function AppShell() {
           </div>
 
           {user && organisation && (
-            <Group
-              gap="xs"
-              py="sm"
-              style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
-              onClick={logout}
-              role="button"
-              aria-label="Sign out"
-              tabIndex={0}
-            >
-              <Avatar color="verdigris" radius="xl" size="sm">
-                {initialsOf(user.name)}
-              </Avatar>
-              <div>
-                <Text size="xs" fw={600}>
-                  {organisation.name}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {user.name}
-                </Text>
-              </div>
-            </Group>
+            <Menu position="top-start" withArrow shadow="sm">
+              <Menu.Target>
+                <UnstyledButton
+                  aria-label="Account menu"
+                  py="sm"
+                  w="100%"
+                  style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}
+                >
+                  <Group gap="xs">
+                    <Avatar color="verdigris" radius="xl" size="sm">
+                      {initialsOf(user.name)}
+                    </Avatar>
+                    <div>
+                      <Text size="xs" fw={600}>
+                        {organisation.name}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {user.name}
+                      </Text>
+                    </div>
+                  </Group>
+                </UnstyledButton>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item onClick={logout}>Log out</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
           )}
         </Stack>
       </MantineAppShell.Navbar>
