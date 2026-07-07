@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "product-manager-toolkit": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/product-manager-toolkit/SKILL.md",
+      "computedHash": "5521db4f1e9b6c1b294e03f885c38e5ef832e005fa377071f94d586a05df70df"
+    }
+  }
+}
