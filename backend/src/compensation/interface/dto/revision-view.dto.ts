@@ -15,7 +15,7 @@ export class RevisionViewDto {
   @ApiProperty()
   id!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: Number, nullable: true })
   oldTotalMinor!: number | null;
 
   @ApiProperty()

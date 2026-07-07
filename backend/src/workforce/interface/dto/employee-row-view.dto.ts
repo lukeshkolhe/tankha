@@ -36,7 +36,7 @@ export class EmployeeRowViewDto {
   @ApiProperty()
   joinDate!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: Number, nullable: true })
   salaryTotalMinor!: number | null;
 }
 
