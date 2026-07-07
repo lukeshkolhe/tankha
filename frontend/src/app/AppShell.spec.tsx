@@ -21,10 +21,12 @@ function mockAuth(overrides: Partial<ReturnType<typeof AuthContextModule.useAuth
 function renderShell() {
   return renderWithProviders(
     <Routes>
+      <Route path="/login" element={<div>Login page</div>} />
       <Route element={<AppShell />}>
         <Route index element={<div>Page content</div>} />
       </Route>
     </Routes>,
+    { initialEntries: ['/'] },
   );
 }
 
@@ -50,6 +52,17 @@ describe('AppShell', () => {
     await user.click(await screen.findByRole('menuitem', { name: /log out/i }));
 
     expect(logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('redirects to /login after logging out', async () => {
+    mockAuth({ logout: vi.fn() });
+    const user = userEvent.setup();
+    renderShell();
+
+    await user.click(screen.getByRole('button', { name: /account menu/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /log out/i }));
+
+    expect(await screen.findByText('Login page')).toBeInTheDocument();
   });
 
   it('shows the signed-in organisation and user name', () => {

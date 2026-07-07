@@ -1,4 +1,4 @@
-import { NavLink as RouterNavLink, Outlet } from 'react-router-dom';
+import { NavLink as RouterNavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   AppShell as MantineAppShell,
   Avatar,
@@ -39,6 +39,12 @@ function initialsOf(name: string): string {
  */
 export function AppShell() {
   const { user, organisation, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <MantineAppShell navbar={{ width: 208, breakpoint: 'sm' }} padding="lg">
@@ -92,7 +98,7 @@ export function AppShell() {
                 </UnstyledButton>
               </Menu.Target>
               <Menu.Dropdown>
-                <Menu.Item onClick={logout}>Log out</Menu.Item>
+                <Menu.Item onClick={handleLogout}>Log out</Menu.Item>
               </Menu.Dropdown>
             </Menu>
           )}
