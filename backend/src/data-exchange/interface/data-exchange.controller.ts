@@ -9,7 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { EmployeeListFilters } from 'src/workforce/domain/employee.repository';
 import { PreviewImportUseCase } from '../application/preview-import.usecase';
@@ -17,10 +17,10 @@ import { CommitImportUseCase } from '../application/commit-import.usecase';
 import { ExportEmployeesUseCase } from '../application/export-employees.usecase';
 import { BuildSampleSheetUseCase } from '../application/build-sample-sheet.usecase';
 import { SheetFormat } from '../domain/sheet-parser';
-import { ImportPreview } from '../domain/import-preview';
-import { ImportReport } from '../domain/import-report';
 import { ImportFilePipe, UploadedSheet } from './import-file.pipe';
 import { CommitImportDto, ExportQueryDto, SheetFormatQueryDto } from './dto/data-exchange.dto';
+import { ImportPreviewResponseDto } from './dto/import-preview-response.dto';
+import { ImportReportResponseDto } from './dto/import-report-response.dto';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const CONTENT_TYPE: Record<SheetFormat, string> = {
@@ -56,19 +56,21 @@ export class DataExchangeController {
   @Post('import/preview')
   @ApiOperation({ summary: 'Dry-run import — buckets, nothing written (FR-4.1, FR-4.2)' })
   @ApiConsumes('multipart/form-data')
+  @ApiOkResponse({ type: ImportPreviewResponseDto })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
-  preview(@UploadedFile(ImportFilePipe) file: UploadedSheet): Promise<ImportPreview> {
+  preview(@UploadedFile(ImportFilePipe) file: UploadedSheet): Promise<ImportPreviewResponseDto> {
     return this.previewImport.execute(file.buffer, file.format);
   }
 
   @Post('import/commit')
   @ApiOperation({ summary: 'Apply import — insert new + confirmed overrides (FR-4.2)' })
   @ApiConsumes('multipart/form-data')
+  @ApiOkResponse({ type: ImportReportResponseDto })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
   commit(
     @UploadedFile(ImportFilePipe) file: UploadedSheet,
     @Body() body: CommitImportDto,
-  ): Promise<ImportReport> {
+  ): Promise<ImportReportResponseDto> {
     return this.commitImport.execute({
       buffer: file.buffer,
       format: file.format,

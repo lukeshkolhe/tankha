@@ -1,9 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { GetOverviewUseCase } from '../application/get-overview.usecase';
 import { GetDepartmentBreakdownUseCase } from '../application/get-department-breakdown.usecase';
 import { GetCountryBreakdownUseCase } from '../application/get-country-breakdown.usecase';
 import { InsightsFilterDto } from './dto/insights-filter.dto';
+import { BreakdownResponseDto, OverviewResponseDto } from './dto/insights-response.dto';
 
 /**
  * Read-only dashboard endpoints. All are tenant-scoped and accept the shared
@@ -22,19 +23,22 @@ export class InsightsController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Headcount + per-currency total/average (FR-5.1)' })
-  overview(@Query() filter: InsightsFilterDto) {
+  @ApiOkResponse({ type: OverviewResponseDto })
+  overview(@Query() filter: InsightsFilterDto): Promise<OverviewResponseDto> {
     return this.getOverview.execute(filter);
   }
 
   @Get('by-department')
   @ApiOperation({ summary: 'Per-department, per-currency breakdown (FR-5.2)' })
-  byDepartment(@Query() filter: InsightsFilterDto) {
+  @ApiOkResponse({ type: BreakdownResponseDto })
+  byDepartment(@Query() filter: InsightsFilterDto): Promise<BreakdownResponseDto> {
     return this.getDepartmentBreakdown.execute(filter);
   }
 
   @Get('by-country')
   @ApiOperation({ summary: 'Per-country, per-currency breakdown (FR-5.2)' })
-  byCountry(@Query() filter: InsightsFilterDto) {
+  @ApiOkResponse({ type: BreakdownResponseDto })
+  byCountry(@Query() filter: InsightsFilterDto): Promise<BreakdownResponseDto> {
     return this.getCountryBreakdown.execute(filter);
   }
 }

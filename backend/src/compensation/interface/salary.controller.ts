@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PageRequest, RawPageParams } from 'src/platform';
 import { GetSalaryUseCase } from '../application/get-salary.usecase';
 import { EditSalaryUseCase } from '../application/edit-salary.usecase';
 import { ListRevisionsUseCase } from '../application/list-revisions.usecase';
 import { EditSalaryDto } from './dto/edit-salary.dto';
+import { SalaryViewDto } from './dto/salary-view.dto';
+import { RevisionPageDto } from './dto/revision-view.dto';
 
 /**
  * Salary endpoints nested under an employee. All require auth and are
@@ -23,13 +25,15 @@ export class SalaryController {
 
   @Get()
   @ApiOperation({ summary: 'Current pay — components + computed total (FR-3.1)' })
-  current(@Param('employeeId') employeeId: string) {
+  @ApiOkResponse({ type: SalaryViewDto })
+  current(@Param('employeeId') employeeId: string): Promise<SalaryViewDto> {
     return this.getSalary.execute(employeeId);
   }
 
   @Put()
   @ApiOperation({ summary: 'Edit salary with a required remark (FR-3.2, FR-3.3)' })
-  edit(@Param('employeeId') employeeId: string, @Body() body: EditSalaryDto) {
+  @ApiOkResponse({ type: SalaryViewDto })
+  edit(@Param('employeeId') employeeId: string, @Body() body: EditSalaryDto): Promise<SalaryViewDto> {
     return this.editSalary.execute({
       employeeId,
       remark: body.remark,
@@ -39,7 +43,8 @@ export class SalaryController {
 
   @Get('revisions')
   @ApiOperation({ summary: 'Salary-change history, newest first (FR-3.3)' })
-  revisions(@Param('employeeId') employeeId: string, @Query() query: RawPageParams) {
+  @ApiOkResponse({ type: RevisionPageDto })
+  revisions(@Param('employeeId') employeeId: string, @Query() query: RawPageParams): Promise<RevisionPageDto> {
     return this.listRevisions.execute(employeeId, PageRequest.from(query));
   }
 }

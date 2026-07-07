@@ -1,6 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ReferenceRepository } from '../domain/reference.repository';
+import { CountryItemDto, CurrencyItemDto, ReferenceItemDto } from './dto/reference-item.dto';
 
 /**
  * Reference lists that feed the create/edit dropdowns and the importer's
@@ -15,25 +16,29 @@ export class ReferenceController {
 
   @Get('departments')
   @ApiOperation({ summary: 'Departments in this organisation' })
-  departments() {
+  @ApiOkResponse({ type: [ReferenceItemDto] })
+  departments(): Promise<ReferenceItemDto[]> {
     return this.references.listDepartments();
   }
 
   @Get('designations')
   @ApiOperation({ summary: 'Designations in this organisation' })
-  designations() {
+  @ApiOkResponse({ type: [ReferenceItemDto] })
+  designations(): Promise<ReferenceItemDto[]> {
     return this.references.listDesignations();
   }
 
   @Get('countries')
   @ApiOperation({ summary: 'Global ISO countries' })
-  countries() {
+  @ApiOkResponse({ type: [CountryItemDto] })
+  countries(): Promise<CountryItemDto[]> {
     return this.references.listCountries();
   }
 
   @Get('currencies')
   @ApiOperation({ summary: 'Global ISO currencies' })
-  currencies() {
+  @ApiOkResponse({ type: [CurrencyItemDto] })
+  currencies(): Promise<CurrencyItemDto[]> {
     return this.references.listCurrencies();
   }
 }

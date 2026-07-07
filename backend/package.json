@@ -13,6 +13,7 @@
     "seed": "ts-node prisma/seed.ts",
     "seed:generate-10k": "ts-node -r tsconfig-paths/register scripts/generate-10k-sheet.ts",
     "seed:import-10k": "ts-node -r tsconfig-paths/register scripts/import-10k-demo.ts",
+    "openapi:export": "ts-node -r tsconfig-paths/register scripts/export-openapi.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
