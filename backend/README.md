@@ -62,12 +62,19 @@ inside the < 1s bar (NFR-1).
 ## Tests
 
 ```bash
-npm test          # unit + use-case tests (in-memory fakes, no DB needed) — 95 tests
-npm run test:e2e  # boots the app graph with a mocked Prisma; verifies wiring & routes
+npm test            # unit + use-case tests (in-memory fakes, no DB needed) — 95 tests
+npm run test:e2e     # boots the app graph with a mocked Prisma; verifies wiring & routes — no DB needed
+npm run test:e2e:db  # real NestJS app + real Prisma + real Postgres, via supertest — needs a migrated/seeded DB
 ```
 
-Domain and application layers are tested against in-memory repository fakes, so the suite is
-fast and needs no database. The scripts above exercise the real Prisma/Postgres path — two
-bugs (a Proxy `this`-binding issue in `PrismaService`, and a 5s Prisma interactive-transaction
-timeout too short for a 10k bulk commit) were only found this way and are fixed in
+Domain and application layers are tested against in-memory repository fakes, so the default
+suite is fast and needs no database. `test:e2e:db` is the one tier that talks to a real
+Postgres instance (same `.env`/`DATABASE_URL` as `start:dev`) — it covers signup/login,
+the cross-module create-employee transaction, salary revisions, **tenant isolation across two
+organisations**, and the import preview→commit flow (including a per-row attribute update on a
+confirmed conflict). It's kept in a separate Jest config (`test/jest-e2e-db.json`,
+`*.integration-spec.ts`) precisely so it doesn't silently require a database for the other two
+tiers. Two real bugs were only found this way: a Proxy `this`-binding issue in `PrismaService`
+(fixed by composition over inheritance) and a 5s Prisma interactive-transaction timeout too
+short for a 10k bulk commit (fixed with a 120s ceiling) — both in
 `src/platform/prisma/prisma.service.ts`.
