@@ -53,7 +53,7 @@ Full PRD: `[docs/PRD.md](./docs/PRD.md)` · problem statement: `[docs/WHY-TANKHA
 make it easy to answer questions about how the org pays people, preserve a full audit
 history of salary changes, and bridge smoothly from the existing Excel workflow.
 
-**Explicitly out of scope (MVP)** — see [PRD §7](./docs/PRD.md#7-dropped--out-of-scope-requirements-mvp)
+**Explicitly out of scope (MVP)** — see `[docs/PRD.md](./docs/PRD.md)`
 for the full table with reasons:
 
 - **Payroll operations** (tax/net-pay calculation, payslips, Full & Final settlement) —
@@ -230,8 +230,6 @@ decisions — each reviewed against the artifact it was actually meant to produc
 ---
 
 ## ⚖️ Trade-offs & What I Left Out
-
-Ties back to [PRD §7](./docs/PRD.md#7-dropped--out-of-scope-requirements-mvp):
 
 - **No payroll engine** (tax/net-pay calculation, payslips, Full & Final settlement) —
 each is a large per-country rabbit hole, and none of it is needed to *understand* how
