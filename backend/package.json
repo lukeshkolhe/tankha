@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Tankha API — NestJS + Prisma, Clean Architecture bounded contexts",
   "license": "UNLICENSED",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "build": "nest build",
     "start": "nest start",
