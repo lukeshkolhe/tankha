@@ -10,7 +10,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/employees', label: 'Employees' },
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/import-export', label: 'Import & export' },
 ];
 
 function initialsOf(name: string): string {
@@ -24,9 +23,10 @@ function initialsOf(name: string): string {
 
 /**
  * The persistent shell every authenticated screen renders inside: the
- * wordmark, the three destinations, and the signed-in org/user — per the
- * design pitch's "quiet, asymmetric shell" layout. Feature routes render into
- * the `<Outlet/>`.
+ * wordmark, the two destinations, and the signed-in org/user — per the
+ * design pitch's "quiet, asymmetric shell" layout. Import/export has no
+ * standalone route — its controls live on the employee list per the
+ * architecture. Feature routes render into the `<Outlet/>`.
  */
 export function AppShell() {
   const { user, organisation, logout } = useAuth();
