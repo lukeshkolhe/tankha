@@ -2,9 +2,9 @@ import { TenantContext, UnitOfWork } from 'src/platform';
 import { InMemoryReferenceRepository, ReferenceSeed } from 'src/workforce/application/testing/in-memory-reference.repository';
 import { InMemoryEmployeeRepository } from 'src/workforce/application/testing/in-memory-employee.repository';
 import { Employee } from 'src/workforce/domain/employee.entity';
-import { SetInitialSalaryUseCase } from 'src/compensation/application/set-initial-salary.usecase';
+import { InMemorySalaryRepository } from 'src/compensation/application/testing/in-memory-salary.repository';
 import { EditSalaryUseCase } from 'src/compensation/application/edit-salary.usecase';
-import { SetInitialSalaryInput, EditSalaryInput } from 'src/compensation/application/dto/salary-commands';
+import { EditSalaryInput } from 'src/compensation/application/dto/salary-commands';
 import { EmployeeSnapshot } from '../domain/employee-snapshot.repository';
 import { ImportClassifier } from './import-classifier';
 import { CommitImportUseCase } from './commit-import.usecase';
@@ -16,13 +16,6 @@ type SheetRecord = Record<string, string | number>;
 class ImmediateUnitOfWork extends UnitOfWork {
   run<T>(work: () => Promise<T>): Promise<T> {
     return work();
-  }
-}
-
-class StubSetInitialSalary {
-  readonly calls: SetInitialSalaryInput[] = [];
-  async execute(input: SetInitialSalaryInput): Promise<void> {
-    this.calls.push(input);
   }
 }
 
@@ -75,7 +68,7 @@ function snapshot(overrides: Partial<EmployeeSnapshot>): EmployeeSnapshot {
 
 interface Harness {
   usecase: CommitImportUseCase;
-  setInitial: StubSetInitialSalary;
+  salaries: InMemorySalaryRepository;
   editSalary: StubEditSalary;
   employees: InMemoryEmployeeRepository;
 }
@@ -87,18 +80,18 @@ function harness(
 ): Harness {
   const references = new InMemoryReferenceRepository(seed);
   const classifier = new ImportClassifier(references, new InMemoryEmployeeSnapshotRepository(snapshots));
-  const setInitial = new StubSetInitialSalary();
+  const salaries = new InMemorySalaryRepository();
   const editSalary = new StubEditSalary();
   const usecase = new CommitImportUseCase(
     new FakeSheetParser(),
     classifier,
     employees,
-    setInitial as unknown as SetInitialSalaryUseCase,
+    salaries,
     editSalary as unknown as EditSalaryUseCase,
     new ImmediateUnitOfWork(),
     tenant(),
   );
-  return { usecase, setInitial, editSalary, employees };
+  return { usecase, salaries, editSalary, employees };
 }
 
 function run(h: Harness, records: SheetRecord[], applyEmployeeCodes: string[] = []) {
@@ -106,15 +99,15 @@ function run(h: Harness, records: SheetRecord[], applyEmployeeCodes: string[] = 
 }
 
 describe('CommitImportUseCase', () => {
-  it('inserts new rows through SetInitialSalary with minor-unit components', async () => {
+  it('inserts new rows with minor-unit components via the batched salary write', async () => {
     const h = harness();
 
     const report = await run(h, [validRow()]);
 
     expect(report).toEqual({ inserted: 1, updated: 0, skippedConflicts: 0, failed: [] });
-    expect(h.setInitial.calls).toHaveLength(1);
-    expect(h.setInitial.calls[0].currencyCode).toBe('INR');
-    expect(h.setInitial.calls[0].components).toContainEqual({ type: 'BASIC', amountMinor: 8000000 });
+    const salary = await h.salaries.getCurrentSalary('emp_1');
+    expect(salary?.currency).toBe('INR');
+    expect(salary?.components).toContainEqual({ type: 'BASIC', amountMinor: 8000000 });
   });
 
   it('converts each currency by its own minorUnitDigits', async () => {
@@ -131,8 +124,10 @@ describe('CommitImportUseCase', () => {
       validRow({ employeeCode: 'B', currency: 'JPY', basic: 1000 }),
     ]);
 
-    expect(h.setInitial.calls[0].components).toContainEqual({ type: 'BASIC', amountMinor: 1250 });
-    expect(h.setInitial.calls[1].components).toContainEqual({ type: 'BASIC', amountMinor: 1000 });
+    const salaryA = await h.salaries.getCurrentSalary('emp_1');
+    const salaryB = await h.salaries.getCurrentSalary('emp_2');
+    expect(salaryA?.components).toContainEqual({ type: 'BASIC', amountMinor: 1250 });
+    expect(salaryB?.components).toContainEqual({ type: 'BASIC', amountMinor: 1000 });
   });
 
   it('updates only the confirmed conflicts via EditSalary, skipping the rest', async () => {
@@ -152,7 +147,6 @@ describe('CommitImportUseCase', () => {
     expect(h.editSalary.calls).toHaveLength(1);
     expect(h.editSalary.calls[0].employeeId).toBe('e1');
     expect(h.editSalary.calls[0].remark).toMatch(/^Imported from test\.csv on \d{4}-\d{2}-\d{2}$/);
-    expect(h.setInitial.calls).toHaveLength(0);
   });
 
   it('applies the confirmed row\'s attribute changes (e.g. designation), not salary alone', async () => {
@@ -194,7 +188,6 @@ describe('CommitImportUseCase', () => {
     const report = await run(h, [validRow({ employeeCode: 'EMP-9' })], []);
 
     expect(report).toEqual({ inserted: 0, updated: 0, skippedConflicts: 1, failed: [] });
-    expect(h.setInitial.calls).toHaveLength(0);
     expect(h.editSalary.calls).toHaveLength(0);
   });
 
@@ -211,6 +204,7 @@ describe('CommitImportUseCase', () => {
     expect(report.failed).toEqual([
       { rowNumber: 3, employeeCode: 'BAD', reasons: ["Unknown department 'Nope'"] },
     ]);
-    expect(h.setInitial.calls).toHaveLength(1);
+    const salary = await h.salaries.getCurrentSalary('emp_1');
+    expect(salary).not.toBeNull();
   });
 });

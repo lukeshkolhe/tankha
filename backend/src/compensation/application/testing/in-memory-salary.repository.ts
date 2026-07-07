@@ -30,6 +30,14 @@ export class InMemorySalaryRepository extends SalaryRepository {
     this.appendRevision(revision);
   }
 
+  async saveInitialMany(
+    structures: readonly SalaryStructure[],
+    revisions: readonly SalaryRevision[],
+  ): Promise<void> {
+    structures.forEach((structure) => this.structures.set(structure.employeeId, structure));
+    revisions.forEach((revision) => this.appendRevision(revision));
+  }
+
   async replaceStructure(structure: SalaryStructure, revision: SalaryRevision): Promise<void> {
     this.structures.set(structure.employeeId, structure);
     this.appendRevision(revision);

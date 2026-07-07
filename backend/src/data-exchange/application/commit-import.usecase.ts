@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { TenantContext, UnitOfWork } from 'src/platform';
 import { Employee } from 'src/workforce/domain/employee.entity';
 import { EmployeeRepository } from 'src/workforce/domain/employee.repository';
-import { SetInitialSalaryUseCase } from 'src/compensation/application/set-initial-salary.usecase';
+import { SalaryRepository } from 'src/compensation/domain/salary.repository';
+import { SalaryStructure } from 'src/compensation/domain/salary-structure.entity';
+import { SalaryRevision } from 'src/compensation/domain/salary-revision.entity';
+import { SalaryComponent } from 'src/compensation/domain/salary-component.vo';
 import { EditSalaryUseCase } from 'src/compensation/application/edit-salary.usecase';
 import { ImportReport } from '../domain/import-report';
 import { FailedRow } from '../domain/failed-row';
@@ -13,10 +16,12 @@ import { ClassifiedRow, ImportClassifier, ResolvedRow } from './import-classifie
 /**
  * Phase 2 of import. Re-parses and re-validates the file against CURRENT DB
  * state (stateless — no server-side staging), then in one `UnitOfWork.run`:
- * creates new rows through the very same `SetInitialSalaryUseCase` manual entry
- * uses (so an initial revision is never skipped), and applies only the confirmed
- * conflicts through `EditSalaryUseCase` with an auto-remark, so every override is
- * an audited append-only revision. Partial success still returns a report.
+ * batch-inserts every new row directly through `SalaryRepository.saveInitialMany`
+ * (a handful of `createMany` round trips regardless of row count — the manual
+ * single-employee use case doesn't scale to a 10k-row import over a networked
+ * DB connection), and applies only the confirmed conflicts through
+ * `EditSalaryUseCase` with an auto-remark, so every override is an audited
+ * append-only revision. Partial success still returns a report.
  */
 @Injectable()
 export class CommitImportUseCase {
@@ -24,7 +29,7 @@ export class CommitImportUseCase {
     private readonly parser: SheetParser,
     private readonly classifier: ImportClassifier,
     private readonly employees: EmployeeRepository,
-    private readonly setInitialSalary: SetInitialSalaryUseCase,
+    private readonly salaries: SalaryRepository,
     private readonly editSalary: EditSalaryUseCase,
     private readonly unitOfWork: UnitOfWork,
     private readonly tenant: TenantContext,
@@ -50,22 +55,30 @@ export class CommitImportUseCase {
   }
 
   private async insertNew(classified: ClassifiedRow[]): Promise<number> {
-    const newRows = classified.filter(isNew);
-    for (const row of newRows) {
-      await this.createEmployee(row.resolved);
+    const resolvedRows = classified.filter(isNew).map((row) => row.resolved);
+    if (resolvedRows.length === 0) {
+      return 0;
     }
-    return newRows.length;
+
+    const employees = resolvedRows.map((resolved) => Employee.create(resolved.attributes));
+    const employeeIds = await this.employees.createMany(employees);
+
+    const structures = resolvedRows.map((resolved, index) =>
+      this.buildStructure(employeeIds[index], resolved),
+    );
+    const revisions = structures.map((structure) =>
+      SalaryRevision.forInitial(structure, this.tenant.userId),
+    );
+    await this.salaries.saveInitialMany(structures, revisions);
+
+    return resolvedRows.length;
   }
 
-  private async createEmployee(resolved: ResolvedRow): Promise<void> {
-    const employeeId = await this.employees.create(Employee.create(resolved.attributes));
-    await this.setInitialSalary.execute({
-      employeeId,
-      organisationId: this.tenant.organisationId,
-      currencyCode: resolved.currencyCode,
-      changedByUserId: this.tenant.userId,
-      components: resolved.components,
-    });
+  private buildStructure(employeeId: string, resolved: ResolvedRow): SalaryStructure {
+    const components = resolved.components.map((component) =>
+      SalaryComponent.of(component.type, component.amountMinor, resolved.currencyCode),
+    );
+    return SalaryStructure.create(employeeId, this.tenant.organisationId, resolved.currencyCode, components);
   }
 
   private async applyConflicts(

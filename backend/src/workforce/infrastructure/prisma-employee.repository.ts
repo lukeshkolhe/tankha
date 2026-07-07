@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { EmployeeStatus, Prisma } from '@prisma/client';
 import { PaginatedResult, PrismaService, TenantContext } from 'src/platform';
@@ -7,6 +8,11 @@ import { EmployeeSort } from '../domain/employee-sort';
 import { EmployeeRowView, EmployeeView, SalarySummaryView } from '../domain/read-models';
 
 type StructureRow = { currencyCode: string; totalMinor: number } | null;
+
+// Postgres allows ~65535 bind parameters per statement; each employee row
+// binds ~10 columns, so this stays comfortably under that with headroom for
+// wider rows, while still cutting a 10k-row import from 10k round trips to ~10.
+const CREATE_MANY_BATCH_SIZE = 1_000;
 
 /**
  * Tenant-scoped Prisma adapter for employees. Every query filters by
@@ -64,6 +70,19 @@ export class PrismaEmployeeRepository extends EmployeeRepository {
       select: { id: true },
     });
     return record.id;
+  }
+
+  async createMany(employees: readonly Employee[]): Promise<string[]> {
+    const ids = employees.map(() => randomUUID());
+    const rows = employees.map((employee, index) => ({
+      id: ids[index],
+      organisationId: this.tenant.organisationId,
+      ...toData(employee),
+    }));
+    for (const batch of chunked(rows, CREATE_MANY_BATCH_SIZE)) {
+      await this.prisma.activeClient.employee.createMany({ data: batch });
+    }
+    return ids;
   }
 
   async update(employee: Employee): Promise<void> {
@@ -233,6 +252,14 @@ function toEntity(record: {
     },
     record.status,
   );
+}
+
+function chunked<T>(items: readonly T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let start = 0; start < items.length; start += size) {
+    batches.push(items.slice(start, start + size));
+  }
+  return batches;
 }
 
 function toData(employee: Employee) {

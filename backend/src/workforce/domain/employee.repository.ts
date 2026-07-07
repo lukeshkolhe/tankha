@@ -38,6 +38,13 @@ export abstract class EmployeeRepository {
   /** Insert a new employee and return its generated id. */
   abstract create(employee: Employee): Promise<string>;
 
+  /**
+   * Bulk variant of `create` for imports: inserts every employee via a handful
+   * of batched `createMany` calls instead of one round trip each, returning
+   * generated ids in the same order as `employees`.
+   */
+  abstract createMany(employees: readonly Employee[]): Promise<string[]>;
+
   /** Persist changed attributes and/or status for an existing employee. */
   abstract update(employee: Employee): Promise<void>;
 

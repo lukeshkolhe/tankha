@@ -20,6 +20,17 @@ export abstract class SalaryRepository {
   /** Insert structure + components + the initial (null-old) revision. */
   abstract saveInitial(structure: SalaryStructure, revision: SalaryRevision): Promise<void>;
 
+  /**
+   * Bulk variant of `saveInitial` for imports: inserts every structure (+
+   * components) and every revision via a handful of batched `createMany` calls
+   * instead of one round trip per employee. `structures[i]` and `revisions[i]`
+   * must be the pair for the same employee, same order.
+   */
+  abstract saveInitialMany(
+    structures: readonly SalaryStructure[],
+    revisions: readonly SalaryRevision[],
+  ): Promise<void>;
+
   /** Replace components + update cached total + append an edit revision. */
   abstract replaceStructure(structure: SalaryStructure, revision: SalaryRevision): Promise<void>;
 

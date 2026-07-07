@@ -25,6 +25,14 @@ export class InMemoryEmployeeRepository extends EmployeeRepository {
     return id;
   }
 
+  async createMany(employees: readonly Employee[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const employee of employees) {
+      ids.push(await this.create(employee));
+    }
+    return ids;
+  }
+
   async update(employee: Employee): Promise<void> {
     if (!employee.id) {
       return;

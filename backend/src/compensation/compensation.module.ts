@@ -9,8 +9,11 @@ import { SalaryController } from './interface/salary.controller';
 
 /**
  * Salary & compensation. Exports SetInitialSalaryUseCase (called by workforce
- * create-employee and the importer, inside their transaction) and EditSalaryUseCase
- * (called by the importer for confirmed updates). Depends only on platform.
+ * create-employee, inside its transaction) and EditSalaryUseCase (called by the
+ * importer for confirmed updates). Also exports SalaryRepository directly so the
+ * importer's bulk-insert path can batch writes via `saveInitialMany` instead of
+ * going through the single-employee use case once per row. Depends only on
+ * platform.
  */
 @Module({
   controllers: [SalaryController],
@@ -21,6 +24,6 @@ import { SalaryController } from './interface/salary.controller';
     GetSalaryUseCase,
     ListRevisionsUseCase,
   ],
-  exports: [SetInitialSalaryUseCase, EditSalaryUseCase],
+  exports: [SalaryRepository, SetInitialSalaryUseCase, EditSalaryUseCase],
 })
 export class CompensationModule {}
