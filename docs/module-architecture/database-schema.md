@@ -15,6 +15,10 @@ single source of truth; `prisma migrate` derives the SQL, and the NestJS
 - **Money = integer minor units + explicit currency code.** No floats, ever. A value is
   `amountMinor: Int` paired with a `currencyCode`. Display formatting uses
   `Currency.minorUnitDigits` (e.g. `250000` INR + 2 digits → ₹2,500.00). No FX.
+- **Salary amounts are annual (annual CTC).** Every `SalaryComponent.amountMinor` — and
+  therefore `SalaryStructure.totalMinor` and every revision total — is an **annual** figure.
+  The whole structure shares one basis, so `computeTotal` sums coherent numbers and
+  `ANNUAL_BONUS` is not blended with components of a different period.
 - **Every row is tenant-scoped.** Every business table carries `organisationId`. The
   `platform` layer enforces that *every* query filters by it (see
   [`00-platform.md`](./00-platform.md)); `organisationId` is denormalised onto child
@@ -144,7 +148,7 @@ model SalaryStructure {
   employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   organisationId String                          // denormalised for tenant filter
   currencyCode   String                          // mirrors employee currency
-  totalMinor     Int                             // cached sum of components (recomputed on write)
+  totalMinor     Int                             // cached annual sum of components (recomputed on write)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -158,7 +162,7 @@ model SalaryComponent {
   salaryStructureId String
   salaryStructure   SalaryStructure     @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
   type              SalaryComponentType
-  amountMinor       Int                             // >= 0, enforced in domain
+  amountMinor       Int                             // annual, >= 0, enforced in domain
 
   @@unique([salaryStructureId, type])            // one row per component type
 }

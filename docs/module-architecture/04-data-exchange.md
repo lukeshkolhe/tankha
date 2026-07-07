@@ -25,14 +25,14 @@ backend/src/data-exchange/
     sheet-parser.ts            SheetParser port (parse → rows); Sheet writer port (rows → file)
   application/
     preview-import.usecase.ts    Parse → validate → bucket into insert/conflict/invalid; persists nothing
-    commit-import.usecase.ts     Re-validate → insert new + update selected conflicts atomically → report
+    commit-import.usecase.ts     Re-validate → create new (incl. initial revision) + update selected → report
     export-employees.usecase.ts  Run the same list query as workforce, stream to a sheet
     build-sample-sheet.usecase.ts  Produce the pre-filled, importable template
     dto/                          ImportPreviewView, ImportResultView, CommitImportCommand, ExportQuery
   infrastructure/
     exceljs-sheet.adapter.ts     exceljs (.xlsx) read/write
     fast-csv-sheet.adapter.ts    fast-csv (.csv) read/write
-    prisma-import.repository.ts  Bulk insert + selected updates within one $transaction
+    prisma-import.repository.ts  Bulk insert (Employee + SalaryStructure + components + initial SalaryRevision) + selected updates, one $transaction
   interface/
     data-exchange.controller.ts  Preview, commit, export (stream), sample-sheet (stream)
     dto/                          ImportPreviewDto, ImportResultDto, CommitImportDto
@@ -60,7 +60,10 @@ are **never silently overwritten**.
 `applyEmployeeCodes[]` — the conflicts HR chose to update. The use case **re-parses and
 re-validates against current DB state** (stateless; no server-side staging — consistent
 with the in-memory upload decision), then in one `prisma.$transaction`:
-- inserts all new valid rows,
+- creates all new valid rows with the **same record set as manual entry** — `Employee` +
+  `SalaryStructure` + components **+ an initial `SalaryRevision`** — bulk-inserted in the one
+  transaction (batched for 10k performance, but the creation-history entry is never skipped),
+  so imported and hand-added employees are indistinguishable in history (NFR-5),
 - **updates only** the conflicts whose `employeeCode` is in `applyEmployeeCodes` (the rest
   are skipped and reported as `skippedConflicts`),
 - routes any salary change through compensation's `EditSalaryUseCase`, so an updated
@@ -83,8 +86,11 @@ fast-follow when files outgrow a synchronous in-memory request (out of MVP scope
 importable as-is. The 10k seed file (NFR-2) is the same format, just larger — so importing
 it exercises this very pipeline at scale.
 
-**Export** reuses `workforce`'s `ListEmployeesQuery` (same filters/search) and streams core
-attributes + current salary total to xlsx/csv. Export is current-dataset only (no history).
+**Export** reuses `workforce`'s `ListEmployeesQuery` (same filters/search) and streams the
+**same columns as the import sample sheet** — core attributes + per-component salary amounts
+in **major units** — to xlsx/csv. This keeps exports human-readable and **re-importable**
+(export → bulk-edit → import, the annual-increment loop the per-row update flow enables).
+Export is current-dataset only (no history).
 
 ---
 
@@ -143,7 +149,12 @@ since preview is handled as an (unselected) conflict, not a blind insert.
 ### `GET /employees/export` — filtered export (FR-4.3)
 Same query params as `GET /employees` (page ignored — exports the whole filtered set) plus
 `format=xlsx|csv`. Streams a file honouring the current filters/search.
-`200`, attachment; columns = core attributes + `salaryTotalMinor` + `currency`.
+`200`, attachment. **Columns match the import sample sheet exactly** (same order, component
+amounts in **major units**), so an export can be edited and re-imported:
+`employeeCode, firstName, lastName, department, designation, country, currency, joinDate,
+basic, houseRentAllowance, specialAllowance, transportAllowance, annualBonus`. A read-only
+`salaryTotal` (major units) column is appended for convenience and is **ignored on import**
+(the total is always recomputed from components).
 
 ---
 

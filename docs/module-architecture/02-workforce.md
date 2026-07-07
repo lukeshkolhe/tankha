@@ -45,12 +45,15 @@ never disagree about "valid".
 
 **Create employee** delegates salary creation to `compensation`'s `SetInitialSalary`
 use case within one `$transaction`: employee + salary structure + components + initial
-`SalaryRevision` are written atomically (NFR-4).
+`SalaryRevision` are written atomically (NFR-4). This is the **only** cross-module edge and
+it is one-directional — `compensation` never calls back into `workforce` (see
+[`03-compensation.md`](./03-compensation.md)), so there is no DI cycle.
 
 **Listing** uses the shared pagination convention and is backed by the composite indexes in
 [`database-schema.md`](./database-schema.md). Each row is projected to `EmployeeRowView`,
-which includes the employee's current `totalMinor` + `currencyCode` (joined from
-`SalaryStructure`) so the list shows pay at a glance without an N+1.
+which includes the employee's current `totalMinor` + `currencyCode` read directly from the
+`SalaryStructure` projection (a deliberate read-only join, not a module call) so the list
+shows pay at a glance without an N+1.
 
 ---
 

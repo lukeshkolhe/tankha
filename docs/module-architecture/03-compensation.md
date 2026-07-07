@@ -2,7 +2,11 @@
 
 **Status:** Draft v1 · **Scope:** MVP
 **Traces to:** [`../PRD.md`](../PRD.md) FR-3.1–3.3 · [`03-compensation PRD`](../module-PRDs/03-compensation.md)
-**Depends on:** [`platform`](./00-platform.md), [`workforce`](./02-workforce.md)
+**Depends on:** [`platform`](./00-platform.md) only. Compensation operates on an
+`employeeId` and its **own** `SalaryStructure` (which carries `currencyCode`), so it does
+**not** import `workforce`. The cross-module edge is strictly one-directional
+(`workforce → compensation`), which avoids a NestJS circular-DI cycle — no `forwardRef`
+needed.
 
 Owns the salary structure (components → computed total, per currency) and the append-only
 change history that doubles as the appraisal record. This is where money correctness and
@@ -36,13 +40,17 @@ backend/src/compensation/
 ```
 
 **Correct-by-construction total.** The domain `computeTotal` sums `SalaryComponent`
-`Money` values via the platform `Money` VO, which **refuses to add across currencies**. The
-total is never accepted from the client — it is always computed server-side and cached in
+`Money` values via the platform `Money` VO, which **refuses to add across currencies**. All
+component amounts are **annual** (annual CTC — see [`database-schema.md`](./database-schema.md)),
+so the sum is one coherent basis and `ANNUAL_BONUS` adds in cleanly. The total is never
+accepted from the client — it is always computed server-side and cached in
 `SalaryStructure.totalMinor` for fast dashboard aggregation.
 
 **Edit salary** (`EditSalaryUseCase`) in one `$transaction`:
 1. Load current structure (tenant-scoped).
-2. Validate: amounts ≥ 0, currency unchanged (follows employee), **remark present**.
+2. Validate: amounts ≥ 0, currency unchanged — read from the existing
+   `SalaryStructure.currencyCode` (set from the employee at creation), so no `workforce`
+   lookup is needed — **remark present**.
 3. Replace components, recompute + persist `totalMinor`.
 4. Append a `SalaryRevision` (`oldTotalMinor`, `newTotalMinor`, `componentsSnapshot`,
    `remark`, `changedByUserId` from `TenantContext`, `createdAt`).
