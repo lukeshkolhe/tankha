@@ -15,3 +15,14 @@ if (!window.matchMedia) {
   });
 }
 
+// jsdom has no ResizeObserver either; Mantine's ScrollArea (used by Select,
+// Combobox, and anything with a scrollable dropdown) needs one. A no-op stub
+// is enough — tests don't depend on real resize notifications.
+if (!window.ResizeObserver) {
+  window.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
