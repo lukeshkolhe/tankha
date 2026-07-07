@@ -214,7 +214,7 @@ module-architecture docs and addressed the findings (commit `e61d9ae`) rather th
 accepting the first draft as the design of record.
 - **Scope discipline** — the discovery/requirements docs (`docs/dump/`) started from a
 much larger payroll-system brief (taxes, payslips, FnF settlement, bank disbursement,
-RBAC). I reviewed and cut that down to the MVP in `docs/PRD.md` §7, keeping the system
+RBAC). I reviewed and cut that down to the MVP in [PRD §7](./docs/PRD.md#7-dropped--out-of-scope-requirements-mvp), keeping the system
 focused on *understanding* compensation rather than *running* payroll — that scoping
 call was mine, not the model's default.
 - **Docs and naming** — I asked for domain-specific naming (`SalaryRevision`,
