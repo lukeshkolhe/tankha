@@ -56,8 +56,11 @@ npm run build  # tsc -b && vite build — the same build Vercel runs
 Deploys to [Vercel](https://vercel.com) as a static site:
 
 1. Import the repo in Vercel, set **Root Directory** to `frontend`.
-2. Set the env var `VITE_API_BASE_URL` to the deployed backend's URL including its prefix,
-   e.g. `https://tankha-api.onrender.com/api/v1`.
+2. Set the env var `VITE_API_BASE_URL` to the deployed backend's **origin only** (no path),
+   e.g. `https://tankha-api.onrender.com` — every generated API path already carries
+   `/api/v1`, so including it here would double it up into a 404
+   (`resolveBaseUrl` strips a trailing `/api/v1` defensively if you do include it, but the
+   origin-only form is the one to use).
 3. Deploy — [`vercel.json`](./vercel.json) rewrites all paths to `index.html` so React
    Router's client-side routes (e.g. `/employees/123`) don't 404 on a direct visit or refresh.
 
