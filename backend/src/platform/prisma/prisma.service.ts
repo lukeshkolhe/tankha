@@ -35,8 +35,16 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return transactionStorage.getStore() ?? this.client;
   }
 
-  /** Opens an interactive transaction on the base client (used by UnitOfWork). */
+  /**
+   * Opens an interactive transaction on the base client (used by UnitOfWork).
+   * Prisma's default interactive-transaction timeout is 5s, which a bulk import
+   * (10k sequential row writes, one $transaction per NFR-4) blows through —
+   * the transaction gets silently closed mid-commit and every write after that
+   * point fails with "Transaction not found". A 2-minute ceiling accommodates
+   * that bulk case; it is an upper bound; ordinary request-scoped transactions
+   * still commit in milliseconds and are unaffected.
+   */
   transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return this.client.$transaction(work);
+    return this.client.$transaction(work, { timeout: 120_000, maxWait: 10_000 });
   }
 }
