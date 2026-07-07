@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { transactionStorage } from './transaction-context';
 
@@ -22,8 +21,6 @@ export class PrismaUnitOfWork extends UnitOfWork {
   }
 
   run<T>(work: () => Promise<T>): Promise<T> {
-    return this.prisma.$transaction((tx) =>
-      transactionStorage.run(tx as Prisma.TransactionClient, work),
-    );
+    return this.prisma.transaction((tx) => transactionStorage.run(tx, work));
   }
 }

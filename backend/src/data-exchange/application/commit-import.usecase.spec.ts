@@ -1,6 +1,7 @@
 import { TenantContext, UnitOfWork } from 'src/platform';
 import { InMemoryReferenceRepository, ReferenceSeed } from 'src/workforce/application/testing/in-memory-reference.repository';
 import { InMemoryEmployeeRepository } from 'src/workforce/application/testing/in-memory-employee.repository';
+import { Employee } from 'src/workforce/domain/employee.entity';
 import { SetInitialSalaryUseCase } from 'src/compensation/application/set-initial-salary.usecase';
 import { EditSalaryUseCase } from 'src/compensation/application/edit-salary.usecase';
 import { SetInitialSalaryInput, EditSalaryInput } from 'src/compensation/application/dto/salary-commands';
@@ -76,9 +77,14 @@ interface Harness {
   usecase: CommitImportUseCase;
   setInitial: StubSetInitialSalary;
   editSalary: StubEditSalary;
+  employees: InMemoryEmployeeRepository;
 }
 
-function harness(snapshots: EmployeeSnapshot[] = [], seed?: ReferenceSeed): Harness {
+function harness(
+  snapshots: EmployeeSnapshot[] = [],
+  seed?: ReferenceSeed,
+  employees: InMemoryEmployeeRepository = new InMemoryEmployeeRepository(),
+): Harness {
   const references = new InMemoryReferenceRepository(seed);
   const classifier = new ImportClassifier(references, new InMemoryEmployeeSnapshotRepository(snapshots));
   const setInitial = new StubSetInitialSalary();
@@ -86,13 +92,13 @@ function harness(snapshots: EmployeeSnapshot[] = [], seed?: ReferenceSeed): Harn
   const usecase = new CommitImportUseCase(
     new FakeSheetParser(),
     classifier,
-    new InMemoryEmployeeRepository(),
+    employees,
     setInitial as unknown as SetInitialSalaryUseCase,
     editSalary as unknown as EditSalaryUseCase,
     new ImmediateUnitOfWork(),
     tenant(),
   );
-  return { usecase, setInitial, editSalary };
+  return { usecase, setInitial, editSalary, employees };
 }
 
 function run(h: Harness, records: SheetRecord[], applyEmployeeCodes: string[] = []) {
@@ -147,6 +153,39 @@ describe('CommitImportUseCase', () => {
     expect(h.editSalary.calls[0].employeeId).toBe('e1');
     expect(h.editSalary.calls[0].remark).toMatch(/^Imported from test\.csv on \d{4}-\d{2}-\d{2}$/);
     expect(h.setInitial.calls).toHaveLength(0);
+  });
+
+  it('applies the confirmed row\'s attribute changes (e.g. designation), not salary alone', async () => {
+    const seed: ReferenceSeed = {
+      departments: [{ id: 'dep_1', name: 'Engineering' }],
+      designations: [
+        { id: 'des_1', name: 'Senior Engineer' },
+        { id: 'des_2', name: 'Director' },
+      ],
+    };
+    const employees = new InMemoryEmployeeRepository();
+    const employeeId = await employees.create(
+      Employee.create({
+        employeeCode: 'EMP-1',
+        firstName: 'Ravi',
+        lastName: 'Kumar',
+        departmentId: 'dep_1',
+        designationId: 'des_2', // Director — the incoming row says Senior Engineer
+        countryCode: 'IN',
+        currencyCode: 'INR',
+        joinDate: '2021-04-01',
+      }),
+    );
+    const h = harness(
+      [snapshot({ id: employeeId, employeeCode: 'EMP-1', designation: 'Director' })],
+      seed,
+      employees,
+    );
+
+    await run(h, [validRow({ employeeCode: 'EMP-1' })], ['EMP-1']);
+
+    const updated = await employees.findEntityById(employeeId);
+    expect(updated?.designationId).toBe('des_1'); // Senior Engineer, per the confirmed row
   });
 
   it('re-validates against current DB: a code that became non-new is a skipped conflict, not a blind insert', async () => {

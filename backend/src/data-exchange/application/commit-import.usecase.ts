@@ -76,13 +76,27 @@ export class CommitImportUseCase {
     const conflicts = classified.filter(isConflict);
     const confirmed = conflicts.filter((conflict) => applyCodes.has(conflict.row.employeeCode));
     for (const conflict of confirmed) {
-      await this.editSalary.execute({
-        employeeId: conflict.existing.id,
-        remark,
-        components: conflict.resolved.components,
-      });
+      await this.applyConflict(conflict, remark);
     }
     return { updated: confirmed.length, skippedConflicts: conflicts.length - confirmed.length };
+  }
+
+  /**
+   * A confirmed conflict applies the whole incoming row, not salary alone: the
+   * preview diff shown to HR (see `computeChanges`) includes core attributes
+   * like department/designation, so ticking the row must update both — the
+   * attribute write and the audited salary revision.
+   */
+  private async applyConflict(conflict: Conflict, remark: string): Promise<void> {
+    const employee = await this.employees.findEntityById(conflict.existing.id);
+    if (employee) {
+      await this.employees.update(employee.withAttributes(conflict.resolved.attributes));
+    }
+    await this.editSalary.execute({
+      employeeId: conflict.existing.id,
+      remark,
+      components: conflict.resolved.components,
+    });
   }
 }
 
