@@ -1,0 +1,177 @@
+import { TenantContext, UnitOfWork } from 'src/platform';
+import { InMemoryReferenceRepository, ReferenceSeed } from 'src/workforce/application/testing/in-memory-reference.repository';
+import { InMemoryEmployeeRepository } from 'src/workforce/application/testing/in-memory-employee.repository';
+import { SetInitialSalaryUseCase } from 'src/compensation/application/set-initial-salary.usecase';
+import { EditSalaryUseCase } from 'src/compensation/application/edit-salary.usecase';
+import { SetInitialSalaryInput, EditSalaryInput } from 'src/compensation/application/dto/salary-commands';
+import { EmployeeSnapshot } from '../domain/employee-snapshot.repository';
+import { ImportClassifier } from './import-classifier';
+import { CommitImportUseCase } from './commit-import.usecase';
+import { FakeSheetParser, encodeSheet } from './in-memory/fake-sheet';
+import { InMemoryEmployeeSnapshotRepository } from './in-memory/in-memory-employee-snapshot.repository';
+
+type SheetRecord = Record<string, string | number>;
+
+class ImmediateUnitOfWork extends UnitOfWork {
+  run<T>(work: () => Promise<T>): Promise<T> {
+    return work();
+  }
+}
+
+class StubSetInitialSalary {
+  readonly calls: SetInitialSalaryInput[] = [];
+  async execute(input: SetInitialSalaryInput): Promise<void> {
+    this.calls.push(input);
+  }
+}
+
+class StubEditSalary {
+  readonly calls: EditSalaryInput[] = [];
+  async execute(input: EditSalaryInput): Promise<void> {
+    this.calls.push(input);
+  }
+}
+
+function tenant(): TenantContext {
+  return { get userId() { return 'usr_1'; }, get organisationId() { return 'org_1'; } } as TenantContext;
+}
+
+function validRow(overrides: Partial<SheetRecord> = {}): SheetRecord {
+  return {
+    employeeCode: 'EMP-1001',
+    firstName: 'Ravi',
+    lastName: 'Kumar',
+    department: 'Engineering',
+    designation: 'Senior Engineer',
+    country: 'IN',
+    currency: 'INR',
+    joinDate: '2021-04-01',
+    basic: 80000,
+    houseRentAllowance: 0,
+    specialAllowance: 0,
+    transportAllowance: 0,
+    annualBonus: 0,
+    ...overrides,
+  };
+}
+
+function snapshot(overrides: Partial<EmployeeSnapshot>): EmployeeSnapshot {
+  return {
+    id: 'e1',
+    employeeCode: 'EMP-1001',
+    firstName: 'Ravi',
+    lastName: 'Kumar',
+    department: 'Engineering',
+    designation: 'Senior Engineer',
+    country: 'IN',
+    currency: 'INR',
+    joinDate: '2021-04-01',
+    components: [],
+    salaryTotalMinor: 0,
+    ...overrides,
+  };
+}
+
+interface Harness {
+  usecase: CommitImportUseCase;
+  setInitial: StubSetInitialSalary;
+  editSalary: StubEditSalary;
+}
+
+function harness(snapshots: EmployeeSnapshot[] = [], seed?: ReferenceSeed): Harness {
+  const references = new InMemoryReferenceRepository(seed);
+  const classifier = new ImportClassifier(references, new InMemoryEmployeeSnapshotRepository(snapshots));
+  const setInitial = new StubSetInitialSalary();
+  const editSalary = new StubEditSalary();
+  const usecase = new CommitImportUseCase(
+    new FakeSheetParser(),
+    classifier,
+    new InMemoryEmployeeRepository(),
+    setInitial as unknown as SetInitialSalaryUseCase,
+    editSalary as unknown as EditSalaryUseCase,
+    new ImmediateUnitOfWork(),
+    tenant(),
+  );
+  return { usecase, setInitial, editSalary };
+}
+
+function run(h: Harness, records: SheetRecord[], applyEmployeeCodes: string[] = []) {
+  return h.usecase.execute({ buffer: encodeSheet(records), format: 'csv', filename: 'test.csv', applyEmployeeCodes });
+}
+
+describe('CommitImportUseCase', () => {
+  it('inserts new rows through SetInitialSalary with minor-unit components', async () => {
+    const h = harness();
+
+    const report = await run(h, [validRow()]);
+
+    expect(report).toEqual({ inserted: 1, updated: 0, skippedConflicts: 0, failed: [] });
+    expect(h.setInitial.calls).toHaveLength(1);
+    expect(h.setInitial.calls[0].currencyCode).toBe('INR');
+    expect(h.setInitial.calls[0].components).toContainEqual({ type: 'BASIC', amountMinor: 8000000 });
+  });
+
+  it('converts each currency by its own minorUnitDigits', async () => {
+    const seed: ReferenceSeed = {
+      currencies: [
+        { code: 'INR', name: 'Rupee', symbol: '₹', minorUnitDigits: 2 },
+        { code: 'JPY', name: 'Yen', symbol: '¥', minorUnitDigits: 0 },
+      ],
+    };
+    const h = harness([], seed);
+
+    await run(h, [
+      validRow({ employeeCode: 'A', basic: 12.5 }),
+      validRow({ employeeCode: 'B', currency: 'JPY', basic: 1000 }),
+    ]);
+
+    expect(h.setInitial.calls[0].components).toContainEqual({ type: 'BASIC', amountMinor: 1250 });
+    expect(h.setInitial.calls[1].components).toContainEqual({ type: 'BASIC', amountMinor: 1000 });
+  });
+
+  it('updates only the confirmed conflicts via EditSalary, skipping the rest', async () => {
+    const snapshots = [
+      snapshot({ id: 'e1', employeeCode: 'EMP-1', salaryTotalMinor: 1 }),
+      snapshot({ id: 'e2', employeeCode: 'EMP-2', salaryTotalMinor: 1 }),
+    ];
+    const h = harness(snapshots);
+
+    const report = await run(
+      h,
+      [validRow({ employeeCode: 'EMP-1' }), validRow({ employeeCode: 'EMP-2' })],
+      ['EMP-1'],
+    );
+
+    expect(report).toEqual({ inserted: 0, updated: 1, skippedConflicts: 1, failed: [] });
+    expect(h.editSalary.calls).toHaveLength(1);
+    expect(h.editSalary.calls[0].employeeId).toBe('e1');
+    expect(h.editSalary.calls[0].remark).toMatch(/^Imported from test\.csv on \d{4}-\d{2}-\d{2}$/);
+    expect(h.setInitial.calls).toHaveLength(0);
+  });
+
+  it('re-validates against current DB: a code that became non-new is a skipped conflict, not a blind insert', async () => {
+    const h = harness([snapshot({ id: 'e9', employeeCode: 'EMP-9' })]);
+
+    const report = await run(h, [validRow({ employeeCode: 'EMP-9' })], []);
+
+    expect(report).toEqual({ inserted: 0, updated: 0, skippedConflicts: 1, failed: [] });
+    expect(h.setInitial.calls).toHaveLength(0);
+    expect(h.editSalary.calls).toHaveLength(0);
+  });
+
+  it('commits valid rows and still reports the failures (partial success)', async () => {
+    const h = harness();
+
+    const report = await run(h, [
+      validRow({ employeeCode: 'OK' }),
+      validRow({ employeeCode: 'BAD', department: 'Nope' }),
+    ]);
+
+    expect(report.inserted).toBe(1);
+    expect(report.updated).toBe(0);
+    expect(report.failed).toEqual([
+      { rowNumber: 3, employeeCode: 'BAD', reasons: ["Unknown department 'Nope'"] },
+    ]);
+    expect(h.setInitial.calls).toHaveLength(1);
+  });
+});

@@ -1,0 +1,167 @@
+// Tankha — physical data model. Single source of truth for the DB.
+// Mirrors docs/module-architecture/database-schema.md exactly.
+// `prisma migrate` derives the SQL; infrastructure layers map domain entities onto these.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── access ───────────────────────────
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  employees    Employee[]
+  departments  Department[]
+  designations Designation[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  email          String       @unique // globally unique login
+  name           String
+  passwordHash   String // argon2
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  salaryRevisions SalaryRevision[] // changes this user made
+
+  @@index([organisationId])
+}
+
+// ─────────────────────────── workforce ───────────────────────────
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Employee {
+  id             String         @id @default(cuid())
+  organisationId String
+  organisation   Organisation   @relation(fields: [organisationId], references: [id])
+  employeeCode   String // HR-facing unique ID, per org
+  firstName      String
+  lastName       String
+  departmentId   String
+  department     Department     @relation(fields: [departmentId], references: [id])
+  designationId  String
+  designation    Designation    @relation(fields: [designationId], references: [id])
+  countryCode    String // ISO 3166-1 alpha-2
+  country        Country        @relation(fields: [countryCode], references: [code])
+  currencyCode   String // ISO 4217
+  currency       Currency       @relation(fields: [currencyCode], references: [code])
+  joinDate       DateTime       @db.Date
+  status         EmployeeStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  salaryStructure SalaryStructure?
+  salaryRevisions SalaryRevision[]
+
+  @@unique([organisationId, employeeCode]) // FR-2.2 uniqueness
+  @@index([organisationId, status]) // list default filter
+  @@index([organisationId, departmentId]) // filter + breakdowns
+  @@index([organisationId, countryCode]) // filter + breakdowns
+  @@index([organisationId, lastName, firstName]) // name sort/search
+}
+
+// ─────────────────────────── compensation ───────────────────────────
+
+enum SalaryComponentType {
+  BASIC
+  HOUSE_RENT_ALLOWANCE
+  SPECIAL_ALLOWANCE
+  TRANSPORT_ALLOWANCE
+  ANNUAL_BONUS // flat annualised bonus amount; structured/variable bonus is out of scope
+}
+
+model SalaryStructure {
+  id             String   @id @default(cuid())
+  employeeId     String   @unique // 1:1 with Employee
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organisationId String // denormalised for tenant filter
+  currencyCode   String // mirrors employee currency
+  totalMinor     Int // cached annual sum of components (recomputed on write)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  components SalaryComponent[]
+
+  @@index([organisationId, currencyCode]) // insights aggregation
+}
+
+model SalaryComponent {
+  id                String              @id @default(cuid())
+  salaryStructureId String
+  salaryStructure   SalaryStructure     @relation(fields: [salaryStructureId], references: [id], onDelete: Cascade)
+  type              SalaryComponentType
+  amountMinor       Int // annual, >= 0, enforced in domain
+
+  @@unique([salaryStructureId, type]) // one row per component type
+}
+
+model SalaryRevision {
+  id                 String   @id @default(cuid())
+  employeeId         String
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  organisationId     String // denormalised for tenant filter
+  currencyCode       String
+  oldTotalMinor      Int? // null on initial creation
+  newTotalMinor      Int
+  componentsSnapshot Json // component breakdown at this revision
+  remark             String // required on edits (FR-3.3)
+  changedByUserId    String
+  changedBy          User     @relation(fields: [changedByUserId], references: [id])
+  createdAt          DateTime @default(now()) // the change timestamp
+
+  @@index([employeeId, createdAt(sort: Desc)]) // newest-first timeline
+  @@index([organisationId])
+}
+
+// ─────────────────────────── reference data ───────────────────────────
+
+model Department {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  name           String
+  employees      Employee[]
+
+  @@unique([organisationId, name])
+}
+
+model Designation {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  name           String
+  employees      Employee[]
+
+  @@unique([organisationId, name])
+}
+
+model Country {
+  code      String     @id // ISO 3166-1 alpha-2, e.g. "IN"
+  name      String
+  employees Employee[]
+}
+
+model Currency {
+  code            String     @id // ISO 4217, e.g. "INR"
+  name            String
+  symbol          String // e.g. "₹"
+  minorUnitDigits Int // 2 for INR/USD, 0 for JPY
+  employees       Employee[]
+}
