@@ -56,6 +56,13 @@ export class DataExchangeController {
   @Post('import/preview')
   @ApiOperation({ summary: 'Dry-run import — buckets, nothing written (FR-4.1, FR-4.2)' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
   @ApiOkResponse({ type: ImportPreviewResponseDto })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
   preview(@UploadedFile(ImportFilePipe) file: UploadedSheet): Promise<ImportPreviewResponseDto> {
@@ -65,6 +72,20 @@ export class DataExchangeController {
   @Post('import/commit')
   @ApiOperation({ summary: 'Apply import — insert new + confirmed overrides (FR-4.2)' })
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        applyEmployeeCodes: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'employeeCodes of the conflicts HR confirmed; omit/[] to insert new only',
+        },
+      },
+    },
+  })
   @ApiOkResponse({ type: ImportReportResponseDto })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE } }))
   commit(
